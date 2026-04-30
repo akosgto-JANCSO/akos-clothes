@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AKOS CLOTHES – PRO WEBSHOP</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<style>
+body{
+    margin:0;
+    font-family:Poppins,sans-serif;
+    background:linear-gradient(135deg,#0d0d0d,#1a1a1a);
+    color:#fff;
+}
+
+header{
+    text-align:center;
+    padding:20px;
+    font-size:28px;
+    font-weight:700;
+    background:linear-gradient(90deg,#ff004c,#ff7a00);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+}
+
+.topbar{
+    display:flex;
+    justify-content:center;
+    gap:20px;
+    padding:10px;
+    color:#aaa;
+    font-size:13px;
+}
+
+.form-container{
+    max-width:520px;
+    margin:20px auto;
+    background:#111;
+    padding:20px;
+    border-radius:12px;
+}
+
+input,select{
+    width:100%;
+    margin:6px 0;
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    background:#222;
+    color:#fff;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+}
+
+.primary{background:linear-gradient(90deg,#ff004c,#ff7a00);color:#fff}
+.danger{background:#222;color:#ff4d4d}
+
+.search{
+    max-width:520px;
+    margin:10px auto;
+}
+
+.products{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:18px;
+    padding:20px;
+}
+
+.card{
+    width:250px;
+    background:#111;
+    border-radius:12px;
+    overflow:hidden;
+    transition:0.2s;
+    position:relative;
+}
+
+.card:hover{transform:scale(1.03)}
+
+.card img{
+    width:100%;
+    height:230px;
+    object-fit:cover;
+}
+
+.card-content{padding:10px}
+
+.price{color:#ff4d4d;font-weight:700}
+.small{font-size:12px;color:#aaa}
+
+.badge{
+    position:absolute;
+    top:10px;
+    right:10px;
+    background:#ff004c;
+    padding:5px 8px;
+    font-size:10px;
+    border-radius:6px;
+}
+
+.actions a, .actions button{
+    display:block;
+    margin-top:6px;
+    text-align:center;
+    padding:8px;
+    border-radius:6px;
+    font-size:12px;
+    text-decoration:none;
+}
+
+.actions a{background:#fff;color:#000}
+.actions button{background:#222;color:#ff4d4d;border:none;cursor:pointer}
+
+.login{
+    max-width:300px;
+    margin:20px auto;
+    background:#111;
+    padding:15px;
+    border-radius:10px;
+}
+</style>
+</head>
+<body>
+
+<header>AKOS CLOTHES PRO WEBSHOP</header>
+
+<div class="topbar">
+    <div id="stats">Betöltés...</div>
+</div>
+
+<!-- LOGIN -->
+<div class="login" id="loginBox">
+    <input id="pass" placeholder="Admin jelszó">
+    <button class="primary" onclick="login()">Belépés</button>
+</div>
+
+<!-- FORM -->
+<div class="form-container" id="adminPanel" style="display:none">
+    <h3>➕ Termék feltöltés</h3>
+    <input id="name" placeholder="Név">
+    <input id="size" placeholder="Méret">
+    <input id="condition" placeholder="Állapot">
+    <input id="price" placeholder="Ár">
+    <input id="image" placeholder="Kép">
+    <input id="link" placeholder="Vinted link">
+    <select id="category">
+        <option>Streetwear</option>
+        <option>Shoes</option>
+        <option>Hoodie</option>
+        <option>Other</option>
+    </select>
+    <button class="primary" onclick="addProduct()">Feltöltés</button>
+</div>
+
+<div class="search">
+<input id="search" placeholder="Keresés..." oninput="render()">
+</div>
+
+<div class="products" id="items"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "IDE",
+  authDomain: "IDE",
+  databaseURL: "IDE",
+  projectId: "IDE"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let all = {};
+let logged = false;
+
+function login(){
+    if(pass.value === "1944"){
+        logged = true;
+        loginBox.style.display="none";
+        adminPanel.style.display="block";
+    } else alert("Hibás jelszó");
+}
+
+function addProduct(){
+    const p={
+        name:name.value,
+        size:size.value,
+        condition:condition.value,
+        price:price.value,
+        image:image.value,
+        link:link.value,
+        category:category.value,
+        sold:false,
+        time:Date.now()
+    };
+
+    db.ref("products").push(p);
+
+    document.querySelectorAll("input").forEach(i=>i.value="");
+}
+
+function sell(id,val){
+    db.ref("products/"+id).update({sold:val});
+}
+
+function del(id){
+    db.ref("products/"+id).remove();
+}
+
+function render(){
+    const q=search.value.toLowerCase();
+    const c=document.getElementById("items");
+    c.innerHTML="";
+
+    let count=0;
+    let revenue=0;
+
+    for(let id in all){
+        const p=all[id];
+
+        if(q && !p.name.toLowerCase().includes(q)) continue;
+
+        count++;
+        if(p.sold) revenue += Number(p.price);
+
+        c.innerHTML+=`
+        <div class="card">
+            ${p.sold?"<div class='badge'>ELADVA</div>":""}
+            <img src="${p.image}">
+            <div class="card-content">
+                <b>${p.name}</b>
+                <div class="small">${p.category} • ${p.size} • ${p.condition}</div>
+                <div class="price">${p.price} Ft</div>
+
+                <div class="actions">
+                    <a href="${p.link}" target="_blank">Vinted</a>
+                    ${logged?`
+                    <button onclick="sell('${id}',true)">Eladva</button>
+                    <button onclick="sell('${id}',false)">Vissza</button>
+                    <button onclick="del('${id}')">Törlés</button>
+                    `:""}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    stats.innerText = `Termékek: ${count} | Bevétel (eladott): ${revenue} Ft`;
+}
+
+db.ref("products").on("value",snap=>{
+    all=snap.val()||{};
+    render();
+});
+</script>
+
+</body>
+</html>
